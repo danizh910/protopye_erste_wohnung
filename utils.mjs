@@ -15,7 +15,10 @@ export function calculateBudgetTotal(budget) {
 }
 
 export function canCompleteDeposit(deposit) {
-  return toNumber(deposit.amount) > 0 && deposit.amountConfirmed;
+  const roommates = Array.isArray(deposit.roommates) ? deposit.roommates : [];
+  if (!roommates.length) return false;
+  const allReady = roommates.every((roommate) => roommate.status === "signed" && Boolean(roommate.email?.trim()) && Boolean(roommate.phone?.trim()));
+  return toNumber(deposit.amount) > 0 && deposit.amountConfirmed && allReady;
 }
 
 export function calculateProgress(tasks) {
