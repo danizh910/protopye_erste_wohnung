@@ -15,7 +15,7 @@ export function calculateBudgetTotal(budget) {
 }
 
 export function canCompleteDeposit(deposit) {
-  return toNumber(deposit.amount) > 0 && deposit.amountConfirmed && deposit.roommates.length >= 2 && deposit.roommates.every((r) => r.status === "signed");
+  return toNumber(deposit.amount) > 0 && deposit.amountConfirmed;
 }
 
 export function calculateProgress(tasks) {
