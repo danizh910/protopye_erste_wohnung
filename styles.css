@@ -1,0 +1,91 @@
+:root {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172033;
+  background: #f7f8fb;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.app-shell {
+  max-width: 540px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+header {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e7ef;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+header h1 { font-size: 1rem; margin: 0; }
+main { padding: 16px; flex: 1; }
+.card {
+  border: 1px solid #e4e6ee;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.tile {
+  border: 2px solid #2c67f2;
+  border-radius: 14px;
+  padding: 18px;
+  background: #f4f7ff;
+  cursor: pointer;
+}
+button, .link-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+button.primary { background: #2c67f2; color: #fff; }
+button.secondary { background: #eef2ff; color: #243056; }
+button.ghost { background: #f3f4f8; color: #1c284d; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.task-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.task-title { font-weight: 600; margin: 0; }
+.subtext { margin: 4px 0 0; color: #5b6377; font-size: 0.9rem; }
+.status-done { color: #18874b; font-weight: 600; }
+.status-open { color: #9aa0b3; font-weight: 600; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccd1df;
+  border-radius: 8px;
+}
+.total {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #13285f;
+}
+.toast {
+  background: #e9f8ef;
+  color: #0d6d3a;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+footer {
+  border-top: 1px solid #ebeef7;
+  padding: 12px 16px;
+  background: #fff;
+}
+a { color: #2c67f2; text-decoration: none; }
+a:hover { text-decoration: underline; }
