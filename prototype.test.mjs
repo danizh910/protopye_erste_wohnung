@@ -1,9 +1,24 @@
-import assert from 'node:assert/strict';
-import { calculateBudgetTotal, canCompleteDeposit, calculateProgress } from './utils.mjs';
+import assert from "node:assert/strict";
+import { calculateBudgetTotal, canCompleteDeposit, calculateProgress } from "./utils.mjs";
 
-assert.deepEqual(calculateProgress([{status:'done'},{status:'open'},{status:'done'}]), {done:2,total:3});
-assert.equal(calculateBudgetTotal({rent:800,internet:30,power:50,insurance:20}), 900);
-assert.equal(canCompleteDeposit({amountConfirmed:true,roommates:[{status:'signed'},{status:'signed'}]}), true);
-assert.equal(canCompleteDeposit({amountConfirmed:true,roommates:[{status:'signed'},{status:'open'}]}), false);
+assert.deepEqual(calculateProgress([{ status: "done" }, { status: "open" }, { status: "done" }]), { done: 2, total: 3 });
 
-console.log('prototype tests passed');
+assert.deepEqual(
+  calculateBudgetTotal({
+    rent: 800,
+    internet: 30,
+    power: 50,
+    insurance: 20,
+    transport: 70,
+    groceries: 220,
+    customItems: [{ amount: 40 }, { amount: 10 }],
+    oneTimeItems: [{ amount: 500 }]
+  }),
+  { monthlyTotal: 1240, oneTimeTotal: 500 }
+);
+
+assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "signed" }] }), true);
+assert.equal(canCompleteDeposit({ amount: 0, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "signed" }] }), false);
+assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "open" }] }), false);
+
+console.log("prototype tests passed");
