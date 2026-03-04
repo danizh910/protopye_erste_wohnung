@@ -293,12 +293,22 @@ function screenDocuments() {
       <button class="primary" data-action="toggle-task" data-task-id="documents" ${(state.documents.leaseUploaded && state.documents.depositConfirmationUploaded) ? "" : "disabled"}>Dokumente als erledigt markieren</button>`);
 }
 
+function completionSummaryItems() {
+  const fixed = ["Kaution organisiert", "Budget erstellt", "Dauerauftrag geplant"];
+  const dynamic = state.tasks
+    .filter((t) => t.status === "done")
+    .map((t) => t.title)
+    .filter((title) => !fixed.some((f) => title.toLowerCase().includes(f.split(" ")[0].toLowerCase())));
+  return [...fixed, ...dynamic];
+}
+
 function screenDone() {
   const completed = state.tasks.filter((t) => t.status === "done");
   const monthly = calculateBudgetTotalExtended(state.budget);
+  const items = completionSummaryItems();
   return layout("Abschluss", `<div class="card stack"><h2>🎉 Geschafft!</h2><p>Deine Wohnung ist organisiert.</p>
       <div class="summary-grid"><div><strong>${completed.length}/6</strong><span>Tasks fertig</span></div><div><strong>${euro(monthly)}</strong><span>Monatsbudget</span></div></div>
-      <h3>Erledigte Punkte</h3><ul><li>Kaution eingerichtet</li><li>Budget erstellt</li><li>Dauerauftrag geplant</li>${completed.map((t) => `<li>${t.title}</li>`).join("")}</ul>
+      <h3>Erledigte Punkte</h3><ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>
       <button class="primary" data-nav="/checklist/first-apartment">Zur Übersicht</button></div>`);
 }
 
@@ -416,6 +426,7 @@ document.addEventListener("click", (event) => {
       state.budget.customItems[idx].amount = Number(el.value || 0);
     });
     markTask("budget", true);
+    state.standingOrder.amount = Number(state.budget.rent || state.standingOrder.amount);
     saveState();
     setToast("Budget gespeichert");
     return render();
