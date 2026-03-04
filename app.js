@@ -207,7 +207,9 @@ function taskSubAction(task) {
   return "";
 }
 
-function getNextOpenTaskId() { return state.tasks.find((task) => task.status === "open")?.id; }
+function getNextOpenTaskId(excludeTaskId = "") {
+  return state.tasks.find((task) => task.status === "open" && task.id !== excludeTaskId)?.id;
+}
 
 function layout(title, content, { showBack = true } = {}) {
   return `<div class="app-shell">
@@ -283,7 +285,7 @@ function screenTask(taskId) {
   if (!task) return layout("Schritt", "<p>Schritt nicht gefunden.</p>");
   const canDone = taskCanBeDone(taskId);
   const issues = completionIssues(taskId);
-  return layout("Schritt", `<div class="card stack"><h2>${task.title}</h2><p>${task.description}</p><p class="subtext">Wenn ein Schritt erledigt ist, wirst du automatisch weitergeleitet.</p>${task.educationTopics.slice(0, 2).map((topic) => `<a href="#/education?topic=${topic}">Mehr erfahren: ${topic}</a>`).join("")}${taskSubAction(task)}<button class="primary" data-action="toggle-task" data-task-id="${task.id}" ${canDone ? "" : "disabled"}>Schritt abschliessen</button>${!canDone ? `<p class="subtext">${taskHints(task.id)}</p><button class="secondary" data-action="show-issues" data-task-id="${task.id}">Trotzdem weiter? Zeige was fehlt</button>` : nextTaskButton()}</div>${issues.length ? `<div class="card"><strong>Offen:</strong><ul>${issues.map((i) => `<li>${i}</li>`).join("")}</ul></div>` : ""}`);
+  return layout("Schritt", `<div class="card stack"><h2>${task.title}</h2><p>${task.description}</p><p class="subtext">Wenn ein Schritt erledigt ist, wirst du automatisch weitergeleitet.</p>${task.educationTopics.slice(0, 2).map((topic) => `<a href="#/education?topic=${topic}">Mehr erfahren: ${topic}</a>`).join("")}${taskSubAction(task)}<button class="primary" data-action="toggle-task" data-task-id="${task.id}" ${canDone ? "" : "disabled"}>Schritt abschliessen</button>${!canDone ? `<p class="subtext">${taskHints(task.id)}</p><button class="secondary" data-action="show-issues" data-task-id="${task.id}">Trotzdem weiter? Zeige was fehlt</button>` : nextTaskButton()}<button class="ghost" data-action="skip-task" data-task-id="${task.id}">Diesen Schritt überspringen</button></div>${issues.length ? `<div class="card"><strong>Offen:</strong><ul>${issues.map((i) => `<li>${i}</li>`).join("")}</ul></div>` : ""}`);
 }
 
 function screenEducation(query) {
@@ -301,7 +303,7 @@ function screenDeposit() {
 function screenInvite() {
   const signed = state.deposit.roommates.filter((r) => r.status === "signed").length;
   const items = state.deposit.roommates.map((r, idx) => `<div class="card stack"><p class="task-title">${r.name}</p><p class="subtext">${r.status === "signed" ? `${r.name} ✓ (QES digital)` : `${r.name} ⏳ offen`}</p>${r.signedAt ? `<p class="subtext">${r.signedAt}</p>` : ""}<label>E-Mail<input id="roommate-email-${idx}" type="email" value="${r.email}" placeholder="name@mail.com" /></label><label>Telefon<input id="roommate-phone-${idx}" value="${r.phone}" placeholder="+41 ..." /></label><div class="inline"><button class="secondary" data-action="save-roommate-contact" data-index="${idx}">Kontaktdaten speichern</button><button class="ghost" data-action="remove-roommate" data-index="${idx}">Entfernen</button></div><p class="subtext">QES-Signaturfeld (mit Maus unterschreiben):</p><canvas class="signature-pad" data-signature-pad="${idx}" width="500" height="140"></canvas><div class="inline"><button class="ghost" data-action="clear-signature" data-index="${idx}">Signatur löschen</button><button class="primary" data-action="sign" data-index="${idx}" ${r.status === "signed" ? "disabled" : ""}>QES digital unterschreiben</button></div></div>`).join("");
-  return layout("Mitbewohner", `<div class="card stack"><h2>Mitbewohner verwalten</h2><p><strong>${signed}/${state.deposit.roommates.length} unterschrieben</strong></p><div class="inline"><input id="roommate-name" placeholder="Name eingeben" /><button class="primary" data-action="add-roommate">Hinzufügen</button></div></div>${items || '<div class="card"><p class="subtext">Keine Personen erfasst.</p></div>'}<button class="ghost" data-nav="/deposit">← Zurück zur Kaution</button>`);
+  return layout("Mitbewohner", `<div class="card stack"><h2>Mitbewohner verwalten</h2><p><strong>${signed}/${state.deposit.roommates.length} unterschrieben</strong></p><div class="inline"><input id="roommate-name" placeholder="Name eingeben" /><button class="primary" data-action="add-roommate">Hinzufügen</button></div></div>${items || '<div class="card"><p class="subtext">Keine Personen erfasst.</p></div>'}<div class="card stack"><button class="secondary" data-nav="/deposit">Zur Kautionsseite</button><button class="ghost" data-back="1">← Zur vorherigen Seite</button></div>`);
 }
 
 function numberInput(id, value, label) { return `<label>${label}<input type="number" id="${id}" value="${value}" min="0" /></label>`; }
@@ -318,7 +320,7 @@ function screenBudget() {
 function screenStandingOrder() {
   const d = state.standingOrders.draft;
   const items = state.standingOrders.items.map((item, idx) => `<li>Dauerauftrag ${idx + 1}: ${item.monthlyAmount} € an ${item.recipient} (Tag ${item.executionDay}) · ${item.confirmed ? "bestätigt" : "offen"} <button class="ghost" data-action="delete-standing-order" data-id="${item.id}">Entfernen</button></li>`).join("");
-  return layout("Daueraufträge", `<div class="card stack"><h2>Daueraufträge einrichten</h2><p class="subtext">Du kannst mehrere Daueraufträge erfassen. Diese kannst du später im E-Banking ansehen, löschen und editieren.</p>${numberInput("so-amount", d.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${d.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${d.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${d.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${d.startDate}" /></label><label>Zweck<input id="so-purpose" value="${d.purpose}" /></label><button class="secondary" data-action="save-standing-order">Daten speichern</button><button class="primary" data-action="confirm-standing-order" ${isStandingOrderDraftReady(d) ? "" : "disabled"}>Dauerauftrag bestätigen</button><button class="primary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>Als weiteren Dauerauftrag erfassen</button></div><div class="card"><h3>Erfasste Daueraufträge</h3><ul>${items || "<li>Noch keine Daueraufträge erfasst.</li>"}</ul><p class="subtext">Hinweis: Im E-Banking kannst du Daueraufträge ansehen/löschen/editieren.</p></div>`);
+  return layout("Daueraufträge", `<div class="card stack"><h2>Daueraufträge einrichten</h2><p class="subtext">Du kannst mehrere Daueraufträge erfassen. Diese kannst du später im E-Banking ansehen, löschen und editieren.</p>${numberInput("so-amount", d.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${d.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${d.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${d.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${d.startDate}" /></label><label>Zweck<input id="so-purpose" value="${d.purpose}" /></label><button class="secondary" data-action="save-standing-order">Entwurf speichern</button><button class="primary" data-action="confirm-standing-order" ${isStandingOrderDraftReady(d) ? "" : "disabled"}>Dauerauftrag bestätigen</button><button class="primary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>Als weiteren Dauerauftrag erfassen</button><button class="ghost" data-action="skip-task" data-task-id="standing-order">Schritt überspringen</button></div><div class="card"><h3>Erfasste Daueraufträge</h3><ul>${items || "<li>Noch keine Daueraufträge erfasst.</li>"}</ul><p class="subtext">Hinweis: Im E-Banking kannst du Daueraufträge ansehen/löschen/editieren.</p>${state.standingOrders.items.length ? '<button class="primary" data-action="toggle-task" data-task-id="standing-order">Schritt abschliessen & weiter</button>' : ""}</div>`);
 }
 
 function insuranceScore(option, priorityCriterion) {
@@ -338,7 +340,7 @@ function screenInsurance() {
   const best = [...selected].sort((a, b) => insuranceScore(b, state.insurance.priorityCriterion) - insuranceScore(a, state.insurance.priorityCriterion))[0];
   const worst = [...selected].sort((a, b) => insuranceScore(a, state.insurance.priorityCriterion) - insuranceScore(b, state.insurance.priorityCriterion))[0];
   const savings = best && worst ? Math.max(0, Number(worst.annualPremium) - Number(best.annualPremium)) : 0;
-  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungen logisch entscheiden</h2><p class="subtext">Wähle das wichtigste Kriterium aus. Daraus berechnen wir im Backend eine nachvollziehbare Empfehlung aus Prämie, Selbstbehalt und Deckung.</p><label>Bis wann vergleichst du Angebote?<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Wichtigstes Kriterium<select id="insurance-priority"><option value="">Bitte auswählen</option><option value="balanced" ${state.insurance.priorityCriterion === "balanced" ? "selected" : ""}>Ausgewogen</option><option value="lowPremium" ${state.insurance.priorityCriterion === "lowPremium" ? "selected" : ""}>Niedrige Jahresprämie</option><option value="lowDeductible" ${state.insurance.priorityCriterion === "lowDeductible" ? "selected" : ""}>Niedriger Selbstbehalt</option><option value="highCoverage" ${state.insurance.priorityCriterion === "highCoverage" ? "selected" : ""}>Hohe Deckung</option></select></label><button class="secondary" data-action="save-insurance">Vergleich auswerten</button>${state.insurance.recommendation ? `<p><strong>Empfehlung:</strong> ${state.insurance.recommendation}${savings ? ` · Potenzielle Ersparnis: ${savings} CHF/Jahr` : ""}</p>` : ""}</div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Schritt abschliessen</button>`);
+  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungen logisch entscheiden</h2><p class="subtext">Wähle das wichtigste Kriterium aus. Die Empfehlung nutzt einen Score aus Deckung, Jahresprämie und Selbstbehalt (je nach Kriterium anders gewichtet).</p><label>Bis wann vergleichst du Angebote?<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Wichtigstes Kriterium<select id="insurance-priority"><option value="">Bitte auswählen</option><option value="balanced" ${state.insurance.priorityCriterion === "balanced" ? "selected" : ""}>Ausgewogen</option><option value="lowPremium" ${state.insurance.priorityCriterion === "lowPremium" ? "selected" : ""}>Niedrige Jahresprämie</option><option value="lowDeductible" ${state.insurance.priorityCriterion === "lowDeductible" ? "selected" : ""}>Niedriger Selbstbehalt</option><option value="highCoverage" ${state.insurance.priorityCriterion === "highCoverage" ? "selected" : ""}>Hohe Deckung</option></select></label><button class="secondary" data-action="save-insurance">Vergleich auswerten</button>${state.insurance.recommendation ? `<p><strong>Empfehlung:</strong> ${state.insurance.recommendation}${savings ? ` · Potenzielle Ersparnis: ${savings} CHF/Jahr` : ""}</p>` : ""}<p class="subtext">Tipp: Passe die Werte in den Karten unten an und speichere neu, um die Empfehlung zu prüfen.</p><button class="ghost" data-action="skip-task" data-task-id="insurance">Schritt überspringen</button></div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Schritt abschliessen</button>`);
 }
 
 function screenDocuments() {
@@ -445,6 +447,15 @@ document.addEventListener("click", (event) => {
     setToast("Schritt erledigt");
     ensureCompletionNavigation();
     if (next) go(`/task/${next}`); else go("/done");
+    return render();
+  }
+
+  if (action === "skip-task") {
+    const id = target.dataset.taskId;
+    if (!id) return;
+    const next = getNextOpenTaskId(id);
+    setToast("Schritt übersprungen");
+    if (next) go(`/task/${next}`); else go("/checklist/first-apartment");
     return render();
   }
 
@@ -579,7 +590,7 @@ document.addEventListener("click", (event) => {
     d.purpose = document.getElementById("so-purpose")?.value || "Miete";
     d.confirmed = false;
     saveState();
-    return setToast("Daten gespeichert");
+    return setToast("Entwurf gespeichert");
   }
 
   if (action === "confirm-standing-order") {
@@ -593,7 +604,8 @@ document.addEventListener("click", (event) => {
     state.standingOrders.items.push({ ...state.standingOrders.draft, id: String(Date.now()) });
     state.standingOrders.draft = { ...clone(defaultState.standingOrders.draft) };
     saveState();
-    return setToast("Dauerauftrag erfasst");
+    setToast("Dauerauftrag erfasst");
+    return render();
   }
 
   if (action === "delete-standing-order") {
