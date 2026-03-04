@@ -15,8 +15,8 @@ const defaultState = {
     amount: 2550,
     amountConfirmed: false,
     roommates: [
-      { name: "Anna", status: "open", signatureType: "none", signedAt: "" },
-      { name: "Luca", status: "open", signatureType: "none", signedAt: "" }
+      { name: "Ich", email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" },
+      { name: "Anna", email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" }
     ]
   },
   budget: {
@@ -66,7 +66,33 @@ let state = loadState();
 function clone(v) { return JSON.parse(JSON.stringify(v)); }
 
 function normalizeRoommate(r) {
-  return { name: r.name || "Unbekannt", status: r.status || "open", signatureType: r.signatureType || "none", signedAt: r.signedAt || "" };
+  return {
+    name: r.name || "Unbekannt",
+    email: r.email || "",
+    phone: r.phone || "",
+    status: r.status || "open",
+    signatureType: r.signatureType || "none",
+    signedAt: r.signedAt || "",
+    signatureDataUrl: r.signatureDataUrl || ""
+  };
+}
+
+function roommateHasContactData(roommate) {
+  return Boolean(roommate?.email?.trim() && roommate?.phone?.trim());
+}
+
+function getDepositIssues() {
+  const issues = [];
+  if (!(Number(state.deposit.amount) > 0)) issues.push("Kautionsbetrag fehlt");
+  if (!state.deposit.amountConfirmed) issues.push("Betrag nicht bestätigt");
+  if (!state.deposit.roommates.length) issues.push("Mindestens eine Person fehlt");
+
+  state.deposit.roommates.forEach((roommate) => {
+    if (!roommateHasContactData(roommate)) issues.push(`Kontaktdaten fehlen bei ${roommate.name}`);
+    if (roommate.status !== "signed") issues.push(`QES-Unterschrift fehlt bei ${roommate.name}`);
+  });
+
+  return issues;
 }
 
 function normalizeState(rawState) {
@@ -205,10 +231,7 @@ function nextTaskButton(label = "Zum nächsten Schritt") {
 
 function completionIssues(taskId) {
   if (taskId === "deposit") {
-    const issues = [];
-    if (!(Number(state.deposit.amount) > 0)) issues.push("Kautionsbetrag fehlt");
-    if (!state.deposit.amountConfirmed) issues.push("Betrag nicht bestätigt");
-    return issues;
+    return getDepositIssues();
   }
   if (taskId === "lease" && !state.documents.leaseUploaded) return ["Mietvertrag fehlt"];
   if (taskId === "documents") {
@@ -238,7 +261,7 @@ function screenChecklist() {
   const next = getNextOpenTaskId();
   const percent = Math.round((progress.done / progress.total) * 100);
   const rows = state.tasks.map((t, idx) => `<div class="card task-row"><div><p class="task-title">${t.status === "done" ? "✓" : `${idx + 1}.`} ${t.title}</p><p class="subtext">${t.description}</p></div><div class="stack"><span class="${t.status === "done" ? "status-done" : "status-open"}">${t.status === "done" ? "Erledigt" : "Offen"}</span><button class="secondary" data-nav="/task/${t.id}">Öffnen</button></div></div>`).join("");
-  return layout("Ablaufübersicht", `<div class="card stack"><strong>Fortschritt: ${progress.done}/${progress.total} (${percent}%)</strong><div class="progress"><span style="width:${percent}%"></span></div><p class="subtext">Nächster Schritt: ${next ? taskById(next).title : "Alles fertig"}</p>${next ? `<button class="primary" data-nav="/task/${next}">Weiter</button>` : '<button class="primary" data-nav="/done">Zur Zusammenfassung</button>'}</div>${rows}<button class="ghost" data-nav="/education">📚 Wohnung verstehen</button>`);
+  return layout("Ablaufübersicht", `<div class="card stack"><strong>Fortschritt: ${progress.done}/${progress.total} (${percent}%)</strong><div class="progress"><span style="width:${percent}%"></span></div><p class="subtext">Nächster Schritt: ${next ? taskById(next).title : "Alles fertig"}</p>${next ? `<button class="primary" data-nav="/task/${next}">Weiter</button>` : '<button class="primary" data-nav="/done">Zur Zusammenfassung</button>'}<button class="secondary" data-nav="/deposit/invite">Mitbewohner verwalten</button></div>${rows}<button class="ghost" data-nav="/education">📚 Wohnung verstehen</button>`);
 }
 
 function taskCanBeDone(taskId) {
@@ -272,12 +295,12 @@ function screenEducation(query) {
 function screenDeposit() {
   const signed = state.deposit.roommates.filter((r) => r.status === "signed").length;
   const amount = Number(state.deposit.amount || 0);
-  return layout("Kaution", `<div class="card stack"><h2>Kaution organisieren</h2><p>Unterschriften sind optional für den Abschluss, können aber dokumentiert werden.</p><label>Kautionsbetrag (€)<input type="number" min="0" id="deposit-amount" value="${amount}" /></label><div class="inline"><button class="secondary" data-action="save-deposit-amount">Betrag speichern</button><button class="${state.deposit.amountConfirmed ? "secondary" : "primary"}" data-action="confirm-amount" ${amount <= 0 ? "disabled" : ""}>${state.deposit.amountConfirmed ? "Betrag bestätigt ✓" : "Betrag bestätigen"}</button></div><button class="secondary" data-nav="/deposit/invite">Mitbewohner verwalten</button><p class="subtext">Unterschriftenstatus: ${signed}/${state.deposit.roommates.length}</p><button class="primary" data-action="toggle-task" data-task-id="deposit" ${canCompleteDeposit(state.deposit) ? "" : "disabled"}>Kaution als erledigt markieren</button></div>`);
+  return layout("Kaution", `<div class="card stack"><h2>Kaution organisieren</h2><p>Für den Abschluss benötigen alle Personen Kontaktdaten und eine digitale QES-Unterschrift (mit Maus).</p><label>Kautionsbetrag (€)<input type="number" min="0" id="deposit-amount" value="${amount}" /></label><div class="inline"><button class="secondary" data-action="save-deposit-amount">Betrag speichern</button><button class="${state.deposit.amountConfirmed ? "secondary" : "primary"}" data-action="confirm-amount" ${amount <= 0 ? "disabled" : ""}>${state.deposit.amountConfirmed ? "Betrag bestätigt ✓" : "Betrag bestätigen"}</button></div><button class="secondary" data-nav="/deposit/invite">Mitbewohner verwalten</button><p class="subtext">Unterschriftenstatus: ${signed}/${state.deposit.roommates.length}</p><button class="primary" data-action="toggle-task" data-task-id="deposit" ${canCompleteDeposit(state.deposit) ? "" : "disabled"}>Kaution als erledigt markieren</button></div>`);
 }
 
 function screenInvite() {
   const signed = state.deposit.roommates.filter((r) => r.status === "signed").length;
-  const items = state.deposit.roommates.map((r, idx) => `<div class="card task-row"><div><p class="task-title">${r.name}</p><p class="subtext">${r.status === "signed" ? `${r.name} ✓ (${r.signatureType === "qes" ? "QES simuliert" : "Standard"})` : `${r.name} ⏳ offen`}</p>${r.signedAt ? `<p class="subtext">${r.signedAt}</p>` : ""}</div><div class="stack"><div class="inline"><button class="secondary" data-action="sign" data-index="${idx}" data-signature="standard" ${r.status === "signed" ? "disabled" : ""}>Standard</button><button class="secondary" data-action="sign" data-index="${idx}" data-signature="qes" ${r.status === "signed" ? "disabled" : ""}>QES simuliert</button></div><button class="ghost" data-action="remove-roommate" data-index="${idx}">Entfernen</button></div></div>`).join("");
+  const items = state.deposit.roommates.map((r, idx) => `<div class="card stack"><p class="task-title">${r.name}</p><p class="subtext">${r.status === "signed" ? `${r.name} ✓ (QES digital)` : `${r.name} ⏳ offen`}</p>${r.signedAt ? `<p class="subtext">${r.signedAt}</p>` : ""}<label>E-Mail<input id="roommate-email-${idx}" type="email" value="${r.email}" placeholder="name@mail.com" /></label><label>Telefon<input id="roommate-phone-${idx}" value="${r.phone}" placeholder="+41 ..." /></label><div class="inline"><button class="secondary" data-action="save-roommate-contact" data-index="${idx}">Kontaktdaten speichern</button><button class="ghost" data-action="remove-roommate" data-index="${idx}">Entfernen</button></div><p class="subtext">QES-Signaturfeld (mit Maus unterschreiben):</p><canvas class="signature-pad" data-signature-pad="${idx}" width="500" height="140"></canvas><div class="inline"><button class="ghost" data-action="clear-signature" data-index="${idx}">Signatur löschen</button><button class="primary" data-action="sign" data-index="${idx}" ${r.status === "signed" ? "disabled" : ""}>QES digital unterschreiben</button></div></div>`).join("");
   return layout("Mitbewohner", `<div class="card stack"><h2>Mitbewohner verwalten</h2><p><strong>${signed}/${state.deposit.roommates.length} unterschrieben</strong></p><div class="inline"><input id="roommate-name" placeholder="Name eingeben" /><button class="primary" data-action="add-roommate">Hinzufügen</button></div></div>${items || '<div class="card"><p class="subtext">Keine Personen erfasst.</p></div>'}<button class="ghost" data-nav="/deposit">← Zurück zur Kaution</button>`);
 }
 
@@ -330,7 +353,7 @@ function screenDocuments() {
 function screenDone() {
   const totals = calculateBudgetTotal(state.budget);
   const completed = state.tasks.filter((t) => t.status === "done");
-  const roommates = state.deposit.roommates.map((r) => `<li>${r.name}: ${r.status === "signed" ? `unterschrieben (${r.signatureType === "qes" ? "QES simuliert" : "Standard"})` : "offen"}</li>`).join("");
+  const roommates = state.deposit.roommates.map((r) => `<li>${r.name}: ${r.status === "signed" ? "unterschrieben (QES digital)" : "offen"} · ${r.email || "keine E-Mail"} · ${r.phone || "kein Telefon"}</li>`).join("");
   const standingOrders = state.standingOrders.items.map((s, idx) => `<li>#${idx + 1}: ${s.monthlyAmount} € an ${s.recipient}, IBAN ${s.iban}, Tag ${s.executionDay}, Start ${s.startDate}, Zweck ${s.purpose}</li>`).join("");
   return layout("Abschluss", `<div class="card stack"><h2>🎉 Stark gemacht!</h2><p>Hier ist deine vollständige Zusammenfassung.</p><div class="summary-grid"><div class="card"><p class="subtext">Kaution</p><strong>${state.deposit.amount} €</strong></div><div class="card"><p class="subtext">Monatsbudget</p><strong>${totals.monthlyTotal} €</strong></div><div class="card"><p class="subtext">Einmalige Kosten</p><strong>${totals.oneTimeTotal} €</strong></div><div class="card"><p class="subtext">Versicherung</p><strong>${state.insurance.recommendation || "Noch keine Empfehlung"}</strong></div></div><h3>Personen / Unterschriften</h3><ul>${roommates || "<li>Keine Personen erfasst</li>"}</ul><h3>Daueraufträge</h3><ul>${standingOrders || "<li>Keine Daueraufträge erfasst</li>"}</ul><h3>Dokumente</h3><ul><li>Mietvertrag: ${state.documents.leaseUploaded ? "Ja" : "Nein"}</li><li>Kautionsbestätigung: ${state.documents.depositConfirmationUploaded ? "Ja" : "Nein"}</li></ul><h3>Erledigte Punkte</h3><ul>${completed.map((t) => `<li>${t.title}</li>`).join("")}</ul><button class="primary" data-nav="/checklist/first-apartment">Zur Übersicht</button></div>`);
 }
@@ -353,6 +376,52 @@ function render() {
   else if (r.path === "/done") html = screenDone();
   else html = screenHome();
   app.innerHTML = html;
+  initializeSignaturePads();
+}
+
+const signaturePadContext = new Map();
+
+function initializeSignaturePads() {
+  const pads = document.querySelectorAll("canvas[data-signature-pad]");
+  pads.forEach((pad) => {
+    const index = Number(pad.dataset.signaturePad);
+    if (Number.isNaN(index)) return;
+    const ctx = pad.getContext("2d");
+    if (!ctx) return;
+
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#172033";
+
+    ctx.clearRect(0, 0, pad.width, pad.height);
+    const existing = state.deposit.roommates[index]?.signatureDataUrl;
+    if (existing) {
+      const image = new Image();
+      image.onload = () => ctx.drawImage(image, 0, 0);
+      image.src = existing;
+    }
+
+    const drawingState = { drawing: false, hasDrawn: Boolean(existing) };
+    signaturePadContext.set(index, { pad, ctx, drawingState });
+
+    pad.onpointerdown = (event) => {
+      drawingState.drawing = true;
+      const rect = pad.getBoundingClientRect();
+      ctx.beginPath();
+      ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    };
+
+    pad.onpointermove = (event) => {
+      if (!drawingState.drawing) return;
+      const rect = pad.getBoundingClientRect();
+      ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+      ctx.stroke();
+      drawingState.hasDrawn = true;
+    };
+
+    pad.onpointerup = () => { drawingState.drawing = false; };
+    pad.onpointerleave = () => { drawingState.drawing = false; };
+  });
 }
 
 window.addEventListener("hashchange", () => render());
@@ -403,7 +472,7 @@ document.addEventListener("click", (event) => {
     const input = document.getElementById("roommate-name");
     const name = input?.value?.trim();
     if (!name) return;
-    state.deposit.roommates.push({ name, status: "open", signatureType: "none", signedAt: "" });
+    state.deposit.roommates.push({ name, email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" });
     saveState();
     setToast(`${name} hinzugefügt`);
     return render();
@@ -418,15 +487,47 @@ document.addEventListener("click", (event) => {
     return render();
   }
 
+  if (action === "save-roommate-contact") {
+    const index = Number(target.dataset.index);
+    if (Number.isNaN(index) || !state.deposit.roommates[index]) return;
+    const email = document.getElementById(`roommate-email-${index}`)?.value?.trim() || "";
+    const phone = document.getElementById(`roommate-phone-${index}`)?.value?.trim() || "";
+    state.deposit.roommates[index].email = email;
+    state.deposit.roommates[index].phone = phone;
+    saveState();
+    return setToast("Kontaktdaten gespeichert");
+  }
+
+  if (action === "clear-signature") {
+    const index = Number(target.dataset.index);
+    const signaturePad = signaturePadContext.get(index);
+    if (!signaturePad || !state.deposit.roommates[index]) return;
+    signaturePad.ctx.clearRect(0, 0, signaturePad.pad.width, signaturePad.pad.height);
+    signaturePad.drawingState.hasDrawn = false;
+    state.deposit.roommates[index].status = "open";
+    state.deposit.roommates[index].signatureType = "none";
+    state.deposit.roommates[index].signedAt = "";
+    state.deposit.roommates[index].signatureDataUrl = "";
+    saveState();
+    return setToast("Signatur gelöscht");
+  }
+
   if (action === "sign") {
     const index = Number(target.dataset.index);
-    const signature = target.dataset.signature || "standard";
     if (Number.isNaN(index) || !state.deposit.roommates[index]) return;
+    const email = document.getElementById(`roommate-email-${index}`)?.value?.trim() || "";
+    const phone = document.getElementById(`roommate-phone-${index}`)?.value?.trim() || "";
+    state.deposit.roommates[index].email = email;
+    state.deposit.roommates[index].phone = phone;
+    if (!roommateHasContactData(state.deposit.roommates[index])) return setToast("Bitte zuerst E-Mail und Telefon erfassen");
+    const signaturePad = signaturePadContext.get(index);
+    if (!signaturePad?.drawingState?.hasDrawn) return setToast("Bitte mit der Maus im Signaturfeld unterschreiben");
     state.deposit.roommates[index].status = "signed";
-    state.deposit.roommates[index].signatureType = signature === "qes" ? "qes" : "standard";
+    state.deposit.roommates[index].signatureType = "qes";
     state.deposit.roommates[index].signedAt = new Date().toLocaleString("de-DE");
+    state.deposit.roommates[index].signatureDataUrl = signaturePad.pad.toDataURL("image/png");
     saveState();
-    setToast(`${state.deposit.roommates[index].name} hat ${signature === "qes" ? "qualifiziert" : "standard"} unterschrieben (simuliert)`);
+    setToast(`${state.deposit.roommates[index].name} hat digital per QES unterschrieben`);
     return render();
   }
 
