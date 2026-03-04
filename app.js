@@ -16,7 +16,7 @@ const defaultState = {
     amountConfirmed: false,
     roommates: [
       { name: "Ich", email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" },
-      { name: "Anna", email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" }
+      { name: "Beispiel Person", email: "", phone: "", status: "open", signatureType: "none", signedAt: "", signatureDataUrl: "" }
     ]
   },
   budget: {
@@ -300,6 +300,7 @@ function screenHome() {
       </div>
       <h3 style="margin-bottom:6px;">Erste eigene Wohnung</h3>
       <p class="subtext">Kaution, Budget, Zahlungen, Versicherungen und Dokumente – alles in einem geführten Ablauf.</p>
+      <button class="primary" data-nav="/onboarding/first-apartment" style="margin-top:10px;">Prozess starten</button>
     </div>
   `, { showBack: false });
 }
@@ -310,22 +311,28 @@ function screenOnboarding() {
     { num: "2", title: "Struktur", desc: "Budget planen und Daueraufträge einrichten." },
     { num: "3", title: "Absicherung", desc: "Versicherungen vergleichen und Dokumente ablegen." }
   ];
+  const nextTask = getNextOpenTaskId() || "lease";
   return layout("Los geht's", `
     <div class="card-hero stack">
       <h2>Bereit für dein neues Zuhause?</h2>
       <p class="subtext">Wir führen dich Schritt für Schritt durch alles Wichtige – ohne Fachjargon, ohne unnötige Komplexität.</p>
+      <div class="quick-start-panel">
+        <p class="caption">Schnellstart</p>
+        <button class="primary primary-red" data-nav="/task/${nextTask}" style="width:100%;">Prozess jetzt starten →</button>
+        <p class="subtext" style="font-size:13px;">Du landest direkt beim nächsten offenen Schritt statt lange zu klicken.</p>
+      </div>
     </div>
     <div class="card stack">
       <h4 style="margin-bottom:4px;">In 3 Phasen zum Ziel</h4>
       ${steps.map((s) => `
-        <div class="journey-step">
+        <div class="journey-step interactive-step">
           <div class="journey-step-num">${s.num}</div>
           <div>
             <p style="font-weight:600;margin-bottom:2px;">${s.title}</p>
             <p class="subtext" style="margin:0;">${s.desc}</p>
           </div>
         </div>`).join("")}
-      <button class="primary" data-nav="/task/lease" style="margin-top:4px;">Jetzt starten</button>
+      <button class="primary" data-nav="/task/${nextTask}" style="margin-top:4px;">Jetzt starten</button>
       <button class="secondary" data-nav="/checklist/first-apartment">Alle Schritte ansehen</button>
     </div>
   `);
@@ -395,7 +402,7 @@ function screenTask(taskId) {
       <h2>${task.title}</h2>
       <p class="subtext">${task.description}</p>
       ${task.educationTopics.slice(0, 2).map((topic) =>
-        `<a href="#/education?topic=${topic}" style="font-size:14px;">📖 Mehr erfahren: ${topic}</a>`
+        `<a href="#/education?topic=${topic}" class="learn-link">📖 Mehr erfahren: ${topic}</a>`
       ).join("")}
     </div>
     <div class="card stack">
@@ -472,6 +479,7 @@ function screenDeposit() {
         <span class="badge ${allSigned ? "badge-done" : "badge-warning"}">${signed}/${total} unterschrieben</span>
       </div>
       <button class="secondary" data-nav="/deposit/invite">Mitbewohner verwalten →</button>
+      ${allSigned ? `<div class="completion-note">✅ Alle haben unterschrieben. Du kannst jetzt in den echten Prozess zurück und den Schritt direkt abschliessen.</div>` : ""}
       <button class="primary" data-action="toggle-task" data-task-id="deposit" ${canCompleteDeposit(state.deposit) ? "" : "disabled"}>
         Kaution abschliessen
       </button>
@@ -501,7 +509,7 @@ function screenInvite() {
       <button class="secondary" data-action="save-roommate-contact" data-index="${idx}" style="align-self:flex-start;">Kontakt speichern</button>
       <div>
         <p class="caption" style="margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">QES-Signatur (mit Maus unterschreiben)</p>
-        <canvas class="signature-pad" data-signature-pad="${idx}" width="500" height="110"></canvas>
+        <canvas class="signature-pad" data-signature-pad="${idx}"></canvas>
       </div>
       <div class="inline">
         <button class="ghost" data-action="clear-signature" data-index="${idx}" style="font-size:13px;">Löschen</button>
@@ -522,6 +530,7 @@ function screenInvite() {
       </div>
     </div>
     ${items || `<div class="card"><p class="subtext" style="text-align:center;padding:8px;">Noch keine Personen erfasst.</p></div>`}
+    ${signed === state.deposit.roommates.length && state.deposit.roommates.length > 0 ? `<div class="card completion-note"><strong>Alle Unterschriften sind da.</strong><p class="subtext" style="margin-top:4px;">Zurück zum Kautions-Schritt und dann wieder in den Hauptprozess wechseln.</p></div>` : ""}
     <button class="secondary" data-nav="/deposit" style="align-self:flex-start;">← Zur Kaution</button>
   `);
 }
@@ -613,7 +622,7 @@ function screenStandingOrder() {
         <button class="secondary" data-action="save-standing-order">Entwurf speichern</button>
         <button class="primary" data-action="confirm-standing-order" ${isStandingOrderDraftReady(d) ? "" : "disabled"}>Bestätigen</button>
       </div>
-      <button class="secondary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>+ Weiteren Dauerauftrag erfassen</button>
+      <button class="secondary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>+ Manuell weiteren Dauerauftrag erfassen</button>
       <button class="ghost" data-action="skip-task" data-task-id="standing-order" style="font-size:14px;color:var(--text-tertiary);">Schritt überspringen</button>
     </div>
     ${items ? `<div class="stack">${items}</div>` : ""}
@@ -642,10 +651,10 @@ function screenInsurance() {
           <p style="font-weight:600;font-size:16px;margin-bottom:4px;">${o.title}</p>
           <p class="subtext" style="font-size:13px;">${o.note}</p>
         </div>
-        <label class="inline" style="cursor:pointer;gap:8px;">
-          <input type="checkbox" data-action="toggle-insurance" data-index="${idx}" ${o.selected ? "checked" : ""} />
-          <span class="caption">Vergleichen</span>
-        </label>
+        <button class="select-chip ${o.selected ? "selected" : ""}" data-action="toggle-insurance" data-index="${idx}">
+          <span class="check-indicator">${o.selected ? "✓" : ""}</span>
+          Vergleichen
+        </button>
       </div>
       <div class="inline" style="gap:8px;">
         ${numberInput(`ins-prem-${idx}`, o.annualPremium, "Prämie/Jahr (€)")}
@@ -680,6 +689,7 @@ function screenInsurance() {
         <div style="padding:16px;background:var(--green-soft);border-radius:var(--radius-md);border:1px solid rgba(52,199,89,0.25);">
           <p style="font-weight:600;color:#1a7a38;margin-bottom:4px;">Empfehlung</p>
           <p class="subtext">${state.insurance.recommendation}${savings ? ` · Potenzielle Ersparnis: <strong>${savings} €/Jahr</strong>` : ""}</p>
+          <a href="https://scheinversicherung.example.com" target="_blank" rel="noreferrer" class="learn-link">Zur Partnerfirma für Abschluss ↗</a>
         </div>` : ""}
       <button class="ghost" data-action="skip-task" data-task-id="insurance" style="font-size:14px;color:var(--text-tertiary);">Überspringen</button>
     </div>
@@ -745,6 +755,19 @@ function screenDone() {
        <div style="flex:1;"><p style="font-size:14px;font-weight:500;">#${idx + 1} ${s.recipient}</p><p class="caption">${s.monthlyAmount} € · Tag ${s.executionDay} · ${s.purpose}</p></div>
      </div>`
   ).join("");
+  const totalPeople = Math.max(1, state.deposit.roommates.length);
+  const perPerson = Math.round((Number(state.deposit.amount) || 0) / totalPeople);
+  const rentPerPerson = Math.round((Number(state.budget.rent) || 0) / totalPeople);
+  const maxShare = Math.max(perPerson, rentPerPerson, 1);
+  const shareBars = state.deposit.roommates.map((roommate) => `
+    <div class="share-row">
+      <div class="share-head"><strong>${roommate.name}</strong><span>${perPerson} € Kaution · ${rentPerPerson} € Miete</span></div>
+      <div class="share-chart-track">
+        <div class="share-chart-fill" style="width:${Math.round((perPerson / maxShare) * 100)}%"></div>
+      </div>
+    </div>
+  `).join("");
+
   return layout("Zusammenfassung", `
     <div class="card-hero stack" style="background:linear-gradient(145deg,#f0fff4,#ffffff);border-color:rgba(52,199,89,0.2);">
       <div style="font-size:40px;">🎉</div><h2>Alles erledigt!</h2><p class="subtext">Hier ist deine vollständige Zusammenfassung.</p>
@@ -755,14 +778,21 @@ function screenDone() {
       <div class="summary-card"><p class="label">Einmalig</p><p class="value">${totals.oneTimeTotal} €</p></div>
       <div class="summary-card"><p class="label">Versicherung</p><p class="value" style="font-size:14px;line-height:1.3;">${state.insurance.recommendation || "Keine Empfehlung"}</p></div>
     </div></div>
+    ${state.deposit.roommates.length ? `<div class="card stack"><h3>Wer zahlt wie viel?</h3><p class="subtext">Responsive Aufteilung pro Person (vereinfacht gleichmässig verteilt).</p>${shareBars}</div>` : ""}
     ${state.deposit.roommates.length ? `<div class="card stack"><h3>Personen</h3>${roommates}</div>` : ""}
     ${state.standingOrders.items.length ? `<div class="card stack"><h3>Daueraufträge</h3>${orders}</div>` : ""}
     <div class="card stack"><h3>Dokumente</h3><div class="inline"><span>${state.documents.leaseUploaded ? "✅" : "⭕"}</span><span style="font-size:15px;">Mietvertrag</span></div><div class="inline"><span>${state.documents.depositConfirmationUploaded ? "✅" : "⭕"}</span><span style="font-size:15px;">Kautionsbestätigung</span></div></div>
-    <div class="card stack"><h3>Erledigte Schritte (${completed.length}/${state.tasks.length})</h3>${completed.map((t) => `<div class="inline"><span class="badge badge-done">✓</span><span style="font-size:15px;">${t.title}</span></div>`).join("")}</div>
-    <button class="primary" data-nav="/checklist/first-apartment" style="margin-top:4px;">Zur Übersicht</button>
+    <div class="card stack">
+      <h3>Status</h3>
+      ${state.tasks.map((task) => `<div class="split"><span style="font-size:15px;">${task.title}</span><span class="status-${task.status}">${task.status === "done" ? "Erledigt" : "Offen"}</span></div>`).join("")}
+      <p class="caption">${completed.length}/${state.tasks.length} Schritte abgeschlossen</p>
+      <div class="inline">
+        <button class="secondary" data-nav="/checklist/first-apartment">Zur Übersicht</button>
+        <button class="primary" data-nav="/home">Neu starten</button>
+      </div>
+    </div>
   `, { showBack: false });
 }
-
 
 function applyLanguageToDom() {
   const lang = getLanguage();
@@ -873,8 +903,15 @@ function initializeSignaturePads() {
   pads.forEach((pad) => {
     const index = Number(pad.dataset.signaturePad);
     if (Number.isNaN(index)) return;
+
+    const width = Math.max(280, Math.floor(pad.getBoundingClientRect().width));
+    const height = 110;
+    const dpr = window.devicePixelRatio || 1;
+    pad.width = Math.floor(width * dpr);
+    pad.height = Math.floor(height * dpr);
     const ctx = pad.getContext("2d");
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
@@ -916,15 +953,17 @@ window.addEventListener("hashchange", () => render());
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
-  const nav = target.dataset.nav;
+  const clickable = target.closest("[data-action], [data-nav], [data-back]");
+  if (!(clickable instanceof HTMLElement)) return;
+  const nav = clickable.dataset.nav;
   if (nav) return go(nav);
-  if (target.dataset.back) return history.back();
+  if (clickable.dataset.back) return history.back();
 
-  const action = target.dataset.action;
+  const action = clickable.dataset.action;
   if (!action) return;
 
   if (action === "toggle-task") {
-    const id = target.dataset.taskId;
+    const id = clickable.dataset.taskId;
     if (!id || !taskCanBeDone(id)) return;
     markTask(id, true);
     saveState();
@@ -936,7 +975,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "skip-task") {
-    const id = target.dataset.taskId;
+    const id = clickable.dataset.taskId;
     if (!id) return;
     const next = getNextOpenTaskId(id);
     setToast("Schritt übersprungen");
@@ -949,7 +988,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "show-issues") {
-    const taskId = target.dataset.taskId;
+    const taskId = clickable.dataset.taskId;
     const issues = completionIssues(taskId || "");
     return setToast(issues.length ? `Fehlt: ${issues.join(", ")}` : "Keine offenen Punkte.");
   }
@@ -979,7 +1018,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "remove-roommate") {
-    const index = Number(target.dataset.index);
+    const index = Number(clickable.dataset.index);
     if (Number.isNaN(index)) return;
     const removed = state.deposit.roommates.splice(index, 1)?.[0];
     saveState();
@@ -988,7 +1027,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "save-roommate-contact") {
-    const index = Number(target.dataset.index);
+    const index = Number(clickable.dataset.index);
     if (Number.isNaN(index) || !state.deposit.roommates[index]) return;
     const email = document.getElementById(`roommate-email-${index}`)?.value?.trim() || "";
     const phone = document.getElementById(`roommate-phone-${index}`)?.value?.trim() || "";
@@ -999,7 +1038,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "clear-signature") {
-    const index = Number(target.dataset.index);
+    const index = Number(clickable.dataset.index);
     const signaturePad = signaturePadContext.get(index);
     if (!signaturePad || !state.deposit.roommates[index]) return;
     signaturePad.ctx.clearRect(0, 0, signaturePad.pad.width, signaturePad.pad.height);
@@ -1013,7 +1052,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "sign") {
-    const index = Number(target.dataset.index);
+    const index = Number(clickable.dataset.index);
     if (Number.isNaN(index) || !state.deposit.roommates[index]) return;
     const email = document.getElementById(`roommate-email-${index}`)?.value?.trim() || "";
     const phone = document.getElementById(`roommate-phone-${index}`)?.value?.trim() || "";
@@ -1032,7 +1071,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "add-item") {
-    const type = target.dataset.type;
+    const type = clickable.dataset.type;
     const item = { id: String(Date.now()), label: "Neuer Punkt", amount: 0 };
     if (type === "custom") state.budget.customItems.push(item);
     if (type === "oneTime") state.budget.oneTimeItems.push(item);
@@ -1041,8 +1080,8 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "remove-item") {
-    const type = target.dataset.type;
-    const index = Number(target.dataset.index);
+    const type = clickable.dataset.type;
+    const index = Number(clickable.dataset.index);
     if (type === "custom") state.budget.customItems.splice(index, 1);
     if (type === "oneTime") state.budget.oneTimeItems.splice(index, 1);
     saveState();
@@ -1085,7 +1124,14 @@ document.addEventListener("click", (event) => {
   if (action === "confirm-standing-order") {
     state.standingOrders.draft.confirmed = isStandingOrderDraftReady(state.standingOrders.draft);
     saveState();
-    return setToast("Dauerauftrag bestätigt");
+    if (state.standingOrders.draft.confirmed) {
+      state.standingOrders.items.push({ ...state.standingOrders.draft, id: String(Date.now()) });
+      state.standingOrders.draft = { ...clone(defaultState.standingOrders.draft) };
+      saveState();
+      render();
+      return setToast("Dauerauftrag bestätigt und erfasst");
+    }
+    return setToast("Bitte Entwurf zuerst vollständig ausfüllen");
   }
 
   if (action === "add-standing-order") {
@@ -1098,14 +1144,14 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "delete-standing-order") {
-    const id = target.dataset.id;
+    const id = clickable.dataset.id;
     state.standingOrders.items = state.standingOrders.items.filter((item) => item.id !== id);
     saveState();
     return setToast("Dauerauftrag entfernt");
   }
 
   if (action === "toggle-insurance") {
-    const index = Number(target.dataset.index);
+    const index = Number(clickable.dataset.index);
     if (Number.isNaN(index)) return;
     state.insurance.options[index].selected = !state.insurance.options[index].selected;
     saveState();
@@ -1166,6 +1212,7 @@ document.addEventListener("change", (event) => {
     date: now
   });
   saveState();
+  target.value = "";
   setToast("Dokument erfolgreich hochgeladen");
   render();
 });
