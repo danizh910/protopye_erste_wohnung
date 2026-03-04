@@ -17,8 +17,8 @@ assert.deepEqual(
   { monthlyTotal: 1240, oneTimeTotal: 500 }
 );
 
-assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "signed" }] }), true);
-assert.equal(canCompleteDeposit({ amount: 0, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "signed" }] }), false);
-assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: true, roommates: [{ status: "signed" }, { status: "open" }] }), false);
+assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: true, roommates: [{ status: "open" }] }), true);
+assert.equal(canCompleteDeposit({ amount: 0, amountConfirmed: true, roommates: [{ status: "signed" }] }), false);
+assert.equal(canCompleteDeposit({ amount: 2400, amountConfirmed: false, roommates: [{ status: "signed" }] }), false);
 
 console.log("prototype tests passed");
