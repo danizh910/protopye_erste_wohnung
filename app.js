@@ -49,7 +49,7 @@ const defaultState = {
       { id: "legal", title: "Rechtsschutz Wohnen", selected: false, priority: "niedrig", note: "Hilft bei mietrechtlichen Streitigkeiten.", annualPremium: 160, deductible: 300, coverage: 3 }
     ],
     compareBy: "",
-    providerNote: "",
+    priorityCriterion: "",
     recommendation: ""
   },
   documents: {
@@ -137,11 +137,16 @@ function markTask(id, done) { const t = taskById(id); if (t) t.status = done ? "
 function isStandingOrderItemComplete(item) {
   return Boolean(item.iban && item.recipient && Number(item.monthlyAmount) > 0 && Number(item.executionDay) >= 1 && Number(item.executionDay) <= 28 && item.startDate && item.confirmed);
 }
+
+function isStandingOrderDraftReady(item) {
+  return Boolean(item.iban && item.recipient && Number(item.monthlyAmount) > 0 && Number(item.executionDay) >= 1 && Number(item.executionDay) <= 28 && item.startDate);
+}
+
 function isStandingOrderComplete() {
   return state.standingOrders.items.length > 0 && state.standingOrders.items.every((item) => isStandingOrderItemComplete(item));
 }
 function isInsuranceComplete() {
-  return state.insurance.options.some((o) => o.selected) && Boolean(state.insurance.compareBy) && Boolean(state.insurance.providerNote) && Boolean(state.insurance.recommendation);
+  return state.insurance.options.some((o) => o.selected) && Boolean(state.insurance.compareBy) && Boolean(state.insurance.priorityCriterion) && Boolean(state.insurance.recommendation);
 }
 
 function updateTaskFromRules() {
@@ -216,7 +221,7 @@ function completionIssues(taskId) {
     if (!state.standingOrders.items.length) return ["Mindestens ein Dauerauftrag fehlt"];
     return state.standingOrders.items.flatMap((item, i) => isStandingOrderItemComplete(item) ? [] : [`Dauerauftrag ${i + 1} unvollständig oder nicht bestätigt`]);
   }
-  if (taskId === "insurance") return isInsuranceComplete() ? [] : ["Vergleichsdatum, Kriterien und eine Empfehlung fehlen"];
+  if (taskId === "insurance") return isInsuranceComplete() ? [] : ["Vergleichsdatum, Prioritätskriterium und eine Empfehlung fehlen"];
   return [];
 }
 
@@ -290,20 +295,27 @@ function screenBudget() {
 function screenStandingOrder() {
   const d = state.standingOrders.draft;
   const items = state.standingOrders.items.map((item, idx) => `<li>Dauerauftrag ${idx + 1}: ${item.monthlyAmount} € an ${item.recipient} (Tag ${item.executionDay}) · ${item.confirmed ? "bestätigt" : "offen"} <button class="ghost" data-action="delete-standing-order" data-id="${item.id}">Entfernen</button></li>`).join("");
-  return layout("Daueraufträge", `<div class="card stack"><h2>Daueraufträge einrichten</h2><p class="subtext">Du kannst mehrere Daueraufträge erfassen. Diese kannst du später im E-Banking ansehen, löschen und editieren.</p>${numberInput("so-amount", d.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${d.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${d.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${d.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${d.startDate}" /></label><label>Zweck<input id="so-purpose" value="${d.purpose}" /></label><button class="secondary" data-action="save-standing-order">Daten speichern</button><button class="primary" data-action="confirm-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>Dauerauftrag bestätigen</button><button class="primary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>Als weiteren Dauerauftrag erfassen</button></div><div class="card"><h3>Erfasste Daueraufträge</h3><ul>${items || "<li>Noch keine Daueraufträge erfasst.</li>"}</ul><p class="subtext">Hinweis: Im E-Banking kannst du Daueraufträge ansehen/löschen/editieren.</p></div>`);
+  return layout("Daueraufträge", `<div class="card stack"><h2>Daueraufträge einrichten</h2><p class="subtext">Du kannst mehrere Daueraufträge erfassen. Diese kannst du später im E-Banking ansehen, löschen und editieren.</p>${numberInput("so-amount", d.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${d.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${d.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${d.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${d.startDate}" /></label><label>Zweck<input id="so-purpose" value="${d.purpose}" /></label><button class="secondary" data-action="save-standing-order">Daten speichern</button><button class="primary" data-action="confirm-standing-order" ${isStandingOrderDraftReady(d) ? "" : "disabled"}>Dauerauftrag bestätigen</button><button class="primary" data-action="add-standing-order" ${isStandingOrderItemComplete(d) ? "" : "disabled"}>Als weiteren Dauerauftrag erfassen</button></div><div class="card"><h3>Erfasste Daueraufträge</h3><ul>${items || "<li>Noch keine Daueraufträge erfasst.</li>"}</ul><p class="subtext">Hinweis: Im E-Banking kannst du Daueraufträge ansehen/löschen/editieren.</p></div>`);
 }
 
-function insuranceScore(option) {
-  return (Number(option.coverage) * 100) - Number(option.annualPremium) - Number(option.deductible) * 0.4;
+function insuranceScore(option, priorityCriterion) {
+  const profiles = {
+    balanced: { coverage: 100, premium: 1, deductible: 0.4 },
+    lowPremium: { coverage: 70, premium: 1.5, deductible: 0.3 },
+    lowDeductible: { coverage: 80, premium: 1, deductible: 1.1 },
+    highCoverage: { coverage: 150, premium: 0.8, deductible: 0.4 }
+  };
+  const profile = profiles[priorityCriterion] || profiles.balanced;
+  return (Number(option.coverage) * profile.coverage) - (Number(option.annualPremium) * profile.premium) - (Number(option.deductible) * profile.deductible);
 }
 
 function screenInsurance() {
-  const options = state.insurance.options.map((o, idx) => `<div class="card stack"><div class="task-row"><div><strong>${o.title}</strong><p class="subtext">${o.note}</p></div><span class="badge">Priorität: ${o.priority}</span></div><div class="inline">${numberInput(`ins-prem-${idx}`, o.annualPremium, "Prämie/Jahr")}${numberInput(`ins-ded-${idx}`, o.deductible, "Selbstbehalt")}${numberInput(`ins-cov-${idx}`, o.coverage, "Deckung (1-5)")}</div><label class="inline"><input type="checkbox" data-action="toggle-insurance" data-index="${idx}" ${o.selected ? "checked" : ""} />In Vergleich aufnehmen</label></div>`).join("");
+  const options = state.insurance.options.map((o, idx) => `<div class="card stack"><div class="task-row"><div><strong>${o.title}</strong><p class="subtext">${o.note}</p></div></div><div class="inline">${numberInput(`ins-prem-${idx}`, o.annualPremium, "Prämie/Jahr")}${numberInput(`ins-ded-${idx}`, o.deductible, "Selbstbehalt")}${numberInput(`ins-cov-${idx}`, o.coverage, "Deckung (1-5)")}</div><label class="inline"><input type="checkbox" data-action="toggle-insurance" data-index="${idx}" ${o.selected ? "checked" : ""} />In Vergleich aufnehmen</label></div>`).join("");
   const selected = state.insurance.options.filter((o) => o.selected);
-  const best = selected.sort((a, b) => insuranceScore(b) - insuranceScore(a))[0];
-  const worst = selected.sort((a, b) => insuranceScore(a) - insuranceScore(b))[0];
+  const best = [...selected].sort((a, b) => insuranceScore(b, state.insurance.priorityCriterion) - insuranceScore(a, state.insurance.priorityCriterion))[0];
+  const worst = [...selected].sort((a, b) => insuranceScore(a, state.insurance.priorityCriterion) - insuranceScore(b, state.insurance.priorityCriterion))[0];
   const savings = best && worst ? Math.max(0, Number(worst.annualPremium) - Number(best.annualPremium)) : 0;
-  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungen logisch entscheiden</h2><p class="subtext">Jetzt passiert beim Vergleich etwas: wir berechnen eine nachvollziehbare Empfehlung aus Prämie, Selbstbehalt und Deckung.</p><label>Bis wann vergleichst du Angebote?<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Deine Kriterien<input id="insurance-note" value="${state.insurance.providerNote}" placeholder="z.B. Selbstbehalt max. 200 CHF, Deckung ab 5 Mio" /></label><button class="secondary" data-action="save-insurance">Vergleich auswerten</button>${state.insurance.recommendation ? `<p><strong>Empfehlung:</strong> ${state.insurance.recommendation}${savings ? ` · Potenzielle Ersparnis: ${savings} CHF/Jahr` : ""}</p>` : ""}</div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Schritt abschliessen</button>`);
+  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungen logisch entscheiden</h2><p class="subtext">Wähle das wichtigste Kriterium aus. Daraus berechnen wir im Backend eine nachvollziehbare Empfehlung aus Prämie, Selbstbehalt und Deckung.</p><label>Bis wann vergleichst du Angebote?<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Wichtigstes Kriterium<select id="insurance-priority"><option value="">Bitte auswählen</option><option value="balanced" ${state.insurance.priorityCriterion === "balanced" ? "selected" : ""}>Ausgewogen</option><option value="lowPremium" ${state.insurance.priorityCriterion === "lowPremium" ? "selected" : ""}>Niedrige Jahresprämie</option><option value="lowDeductible" ${state.insurance.priorityCriterion === "lowDeductible" ? "selected" : ""}>Niedriger Selbstbehalt</option><option value="highCoverage" ${state.insurance.priorityCriterion === "highCoverage" ? "selected" : ""}>Hohe Deckung</option></select></label><button class="secondary" data-action="save-insurance">Vergleich auswerten</button>${state.insurance.recommendation ? `<p><strong>Empfehlung:</strong> ${state.insurance.recommendation}${savings ? ` · Potenzielle Ersparnis: ${savings} CHF/Jahr` : ""}</p>` : ""}</div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Schritt abschliessen</button>`);
 }
 
 function screenDocuments() {
@@ -470,7 +482,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (action === "confirm-standing-order") {
-    state.standingOrders.draft.confirmed = isStandingOrderItemComplete(state.standingOrders.draft);
+    state.standingOrders.draft.confirmed = isStandingOrderDraftReady(state.standingOrders.draft);
     saveState();
     return setToast("Dauerauftrag bestätigt");
   }
@@ -500,16 +512,22 @@ document.addEventListener("click", (event) => {
 
   if (action === "save-insurance") {
     state.insurance.compareBy = document.getElementById("insurance-compare")?.value || "";
-    state.insurance.providerNote = document.getElementById("insurance-note")?.value?.trim() || "";
+    state.insurance.priorityCriterion = document.getElementById("insurance-priority")?.value || "";
     state.insurance.options.forEach((o, idx) => {
       o.annualPremium = Number(document.getElementById(`ins-prem-${idx}`)?.value || o.annualPremium);
       o.deductible = Number(document.getElementById(`ins-ded-${idx}`)?.value || o.deductible);
       o.coverage = Number(document.getElementById(`ins-cov-${idx}`)?.value || o.coverage);
     });
     const selected = state.insurance.options.filter((o) => o.selected);
-    if (selected.length) {
-      const best = [...selected].sort((a, b) => insuranceScore(b) - insuranceScore(a))[0];
-      state.insurance.recommendation = `${best.title} passt am besten zu deinen Kriterien`;
+    const criterionLabel = {
+      balanced: "ausgewogene Entscheidung",
+      lowPremium: "niedrige Jahresprämie",
+      lowDeductible: "niedriger Selbstbehalt",
+      highCoverage: "hohe Deckung"
+    };
+    if (selected.length && state.insurance.priorityCriterion) {
+      const best = [...selected].sort((a, b) => insuranceScore(b, state.insurance.priorityCriterion) - insuranceScore(a, state.insurance.priorityCriterion))[0];
+      state.insurance.recommendation = `${best.title} passt am besten zum Kriterium „${criterionLabel[state.insurance.priorityCriterion] || "ausgewogene Entscheidung"}“`;
     } else {
       state.insurance.recommendation = "";
     }
