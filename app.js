@@ -119,11 +119,11 @@ function markTask(id, done) {
 
 function isStandingOrderComplete() {
   const s = state.standingOrder;
-  return Boolean(s.confirmed && s.iban && s.recipient && Number(s.monthlyAmount) > 0 && Number(s.executionDay) >= 1 && s.startDate);
+  return Boolean(s.iban && s.recipient && Number(s.monthlyAmount) > 0 && Number(s.executionDay) >= 1 && Number(s.executionDay) <= 28 && s.startDate);
 }
 
 function isInsuranceComplete() {
-  return state.insurance.options.some((o) => o.selected) && Boolean(state.insurance.compareBy);
+  return state.insurance.options.some((o) => o.selected) && Boolean(state.insurance.compareBy) && Boolean(state.insurance.providerNote);
 }
 
 function updateTaskFromRules() {
@@ -168,10 +168,16 @@ function layout(title, content, { showBack = true } = {}) {
     </header>
     <main>${content}${state.ui.toast ? `<div class="toast">${state.ui.toast}</div>` : ""}</main>
     <footer>
-      <button class="ghost" data-nav="/checklist/first-apartment">Zur Checkliste</button>
+      <button class="ghost" data-nav="/checklist/first-apartment">Zum Reiseplan</button>
       <button class="ghost" data-action="reset">Reset</button>
     </footer>
   </div>`;
+}
+
+function nextTaskButton(label = "Zum nächsten Schritt") {
+  const next = getNextOpenTaskId();
+  if (!next) return '<button class="primary" data-nav="/done">Zur Zusammenfassung</button>';
+  return `<button class="primary" data-nav="/task/${next}">${label}: ${taskById(next).title}</button>`;
 }
 
 function screenHome() {
@@ -179,7 +185,7 @@ function screenHome() {
 }
 
 function screenOnboarding() {
-  return layout("Onboarding", `<div class="card stack"><h2>Dein Plan in 6 Schritten</h2><ol class="subtext"><li>Mietvertrag sichern</li><li>Kaution festlegen</li><li>Budget kalkulieren</li><li>Dauerauftrag vorbereiten</li><li>Versicherungen vergleichen</li><li>Dokumente final speichern</li></ol><button class="primary" data-nav="/checklist/first-apartment">Checkliste starten</button></div>`);
+  return layout("Onboarding", `<div class="card stack"><h2>Willkommen zu deiner Wohnungsreise</h2><p>Wir gehen gemeinsam Schritt für Schritt durch alles, was vor dem Einzug wichtig ist. Du musst nichts auswendig wissen — wir führen dich durch.</p><div class="journey-step"><strong>1. Ankommen:</strong> Mietvertrag & Kaution sauber aufsetzen.</div><div class="journey-step"><strong>2. Stabil werden:</strong> Budget + Dauerauftrag so planen, dass alles pünktlich läuft.</div><div class="journey-step"><strong>3. Absichern:</strong> Versicherungen logisch auswählen und Dokumente final sammeln.</div><button class="primary" data-nav="/task/lease">Reise starten</button><button class="secondary" data-nav="/checklist/first-apartment">Alle Schritte ansehen</button></div>`);
 }
 
 function screenChecklist() {
@@ -188,7 +194,7 @@ function screenChecklist() {
   const percent = Math.round((progress.done / progress.total) * 100);
   const rows = state.tasks.map((t, idx) => `<div class="card task-row"><div><p class="task-title">${t.status === "done" ? "✓" : `${idx + 1}.`} ${t.title}</p><p class="subtext">${t.description}</p></div><div class="stack"><span class="${t.status === "done" ? "status-done" : "status-open"}">${t.status === "done" ? "Erledigt" : "Offen"}</span><button class="secondary" data-nav="/task/${t.id}">Öffnen</button></div></div>`).join("");
 
-  return layout("Checkliste", `<div class="card stack"><strong>Fortschritt: ${progress.done}/${progress.total} (${percent}%)</strong><div class="progress"><span style="width:${percent}%"></span></div><p class="subtext">Nächster logischer Schritt: ${next ? taskById(next).title : "Alles fertig"}</p></div>${rows}<button class="ghost" data-nav="/education">📚 Wohnung verstehen</button>`);
+  return layout("Reiseplan", `<div class="card stack"><strong>Fortschritt: ${progress.done}/${progress.total} (${percent}%)</strong><div class="progress"><span style="width:${percent}%"></span></div><p class="subtext">Nächster logischer Schritt: ${next ? taskById(next).title : "Alles fertig"}</p>${next ? `<button class="primary" data-nav="/task/${next}">Weiter mit dem nächsten Schritt</button>` : '<button class="primary" data-nav="/done">Zur Zusammenfassung</button>'}</div>${rows}<button class="ghost" data-nav="/education">📚 Wohnung verstehen</button>`);
 }
 
 function taskCanBeDone(taskId) {
@@ -206,7 +212,7 @@ function taskHints(taskId) {
   if (taskId === "lease") return "Bitte Mietvertrag unter Dokumente hochladen.";
   if (taskId === "documents") return "Mietvertrag und Kautionsbestätigung fehlen noch.";
   if (taskId === "standing-order") return "IBAN, Betrag, Ausführungstag und Startdatum vervollständigen.";
-  if (taskId === "insurance") return "Mindestens eine Versicherung wählen und Vergleichsdatum setzen.";
+  if (taskId === "insurance") return "Mindestens eine Versicherung wählen, Vergleichsdatum setzen und deine Kriterien notieren.";
   return "";
 }
 
@@ -215,7 +221,7 @@ function screenTask(taskId) {
   if (!task) return layout("Task", "<p>Task nicht gefunden.</p>");
   const canDone = taskCanBeDone(taskId);
 
-  return layout("Task Detail", `<div class="card stack"><h2>${task.title}</h2><p>${task.description}</p>${task.educationTopics.slice(0, 2).map((topic) => `<a href="#/education?topic=${topic}">Mehr erfahren: ${topic}</a>`).join("")}${taskSubAction(task)}<button class="primary" data-action="toggle-task" data-task-id="${task.id}" ${canDone ? "" : "disabled"}>Als erledigt markieren</button>${!canDone ? `<p class="subtext">${taskHints(task.id)}</p>` : ""}</div>`);
+  return layout("Schritt", `<div class="card stack"><h2>${task.title}</h2><p>${task.description}</p><p class="subtext">Fokus jetzt: erst diesen Schritt sauber abschliessen, dann führen wir dich direkt weiter.</p>${task.educationTopics.slice(0, 2).map((topic) => `<a href="#/education?topic=${topic}">Mehr erfahren: ${topic}</a>`).join("")}${taskSubAction(task)}<button class="primary" data-action="toggle-task" data-task-id="${task.id}" ${canDone ? "" : "disabled"}>Schritt abschliessen</button>${!canDone ? `<p class="subtext">${taskHints(task.id)}</p>` : nextTaskButton()}</div>`);
 }
 
 function screenEducation(query) {
@@ -251,12 +257,12 @@ function screenBudget() {
 
 function screenStandingOrder() {
   const s = state.standingOrder;
-  return layout("Dauerauftrag", `<div class="card stack"><h2>Dauerauftrag einrichten</h2>${numberInput("so-amount", s.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${s.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${s.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${s.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${s.startDate}" /></label><label>Zweck<input id="so-purpose" value="${s.purpose}" /></label><button class="primary" data-action="save-standing-order">Daten speichern</button><button class="${s.confirmed ? "secondary" : "primary"}" data-action="confirm-standing-order" ${isStandingOrderComplete() ? "" : "disabled"}>${s.confirmed ? "Dauerauftrag bestätigt ✓" : "Dauerauftrag bestätigen"}</button><p class="subtext">Tipp: 2-3 Tage vor Mietfälligkeit einplanen.</p></div>`);
+  return layout("Dauerauftrag", `<div class="card stack"><h2>Dauerauftrag einrichten</h2><p class="subtext">Ziel: Deine Miete läuft automatisch und pünktlich. Trage die Daten ein, speichere und bestätige dann final.</p>${numberInput("so-amount", s.monthlyAmount || "", "Monatlicher Betrag (€)")}<label>Empfänger<input id="so-recipient" value="${s.recipient}" placeholder="z.B. Vermietung Muster AG" /></label><label>IBAN<input id="so-iban" value="${s.iban}" placeholder="CH93...." /></label><label>Ausführungstag (1-28)<input type="number" min="1" max="28" id="so-day" value="${s.executionDay || 1}" /></label><label>Startdatum<input type="date" id="so-start" value="${s.startDate}" /></label><label>Zweck<input id="so-purpose" value="${s.purpose}" /></label><button class="primary" data-action="save-standing-order">Daten speichern</button><button class="${s.confirmed ? "secondary" : "primary"}" data-action="confirm-standing-order" ${isStandingOrderComplete() ? "" : "disabled"}>${s.confirmed ? "Dauerauftrag bestätigt ✓" : "Final bestätigen"}</button><p class="subtext">Tipp: 2-3 Tage vor Mietfälligkeit einplanen.</p>${s.confirmed ? nextTaskButton("Weiter") : ""}</div>`);
 }
 
 function screenInsurance() {
-  const options = state.insurance.options.map((o, idx) => `<div class="card stack"><label class="inline"><input type="checkbox" data-action="toggle-insurance" data-index="${idx}" ${o.selected ? "checked" : ""} /><strong>${o.title}</strong> <span class="badge">Priorität: ${o.priority}</span></label><p class="subtext">${o.note}</p></div>`).join("");
-  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungs-Check</h2><p class="subtext">Wähle aus, was für deine Situation relevant ist, und notiere bis wann du Angebote vergleichst.</p><label>Vergleich bis<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Notizen zu Anbietern<input id="insurance-note" value="${state.insurance.providerNote}" placeholder="z.B. 2 Angebote mit Selbstbehalt 200 CHF" /></label><button class="secondary" data-action="save-insurance">Versicherungsplan speichern</button></div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Versicherungen als erledigt markieren</button>`);
+  const options = state.insurance.options.map((o, idx) => `<div class="card stack"><div class="task-row"><div><strong>${o.title}</strong><p class="subtext">${o.note}</p></div><span class="badge">Priorität: ${o.priority}</span></div><label class="inline"><input type="checkbox" data-action="toggle-insurance" data-index="${idx}" ${o.selected ? "checked" : ""} />Für mich sinnvoll</label></div>`).join("");
+  return layout("Versicherungen", `<div class="card stack"><h2>Versicherungen logisch entscheiden</h2><p class="subtext">Orientierung: Haftpflicht ist fast immer sinnvoll. Hausrat lohnt sich, wenn deine Einrichtung wertvoll ist. Rechtsschutz ist eher optional für zusätzliche Sicherheit.</p><label>Bis wann vergleichst du Angebote?<input type="date" id="insurance-compare" value="${state.insurance.compareBy}" /></label><label>Deine Entscheidung / Kriterien<input id="insurance-note" value="${state.insurance.providerNote}" placeholder="z.B. Haftpflicht + Hausrat, Selbstbehalt max. 200 CHF" /></label><button class="secondary" data-action="save-insurance">Entscheidung speichern</button></div>${options}<button class="primary" data-action="toggle-task" data-task-id="insurance" ${isInsuranceComplete() ? "" : "disabled"}>Schritt abschliessen</button>`);
 }
 
 function screenDocuments() {
