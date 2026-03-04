@@ -57,7 +57,7 @@ const defaultState = {
     depositConfirmationUploaded: false,
     uploads: []
   },
-  ui: { toast: "", lastError: "" }
+  ui: { toast: "", lastError: "", language: "de" }
 };
 
 const app = document.getElementById("app");
@@ -143,6 +143,21 @@ function loadState() {
 
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
+
+function getLanguage() {
+  return state.ui.language === "en" ? "en" : "de";
+}
+
+function t(de, en) {
+  return getLanguage() === "en" ? en : de;
+}
+
+function toggleLanguage() {
+  state.ui.language = getLanguage() === "de" ? "en" : "de";
+  saveState();
+  render();
+}
+
 function setToast(msg) {
   state.ui.toast = msg;
   saveState();
@@ -212,24 +227,34 @@ function getNextOpenTaskId(excludeTaskId = "") {
 }
 
 function layout(title, content, { showBack = true } = {}) {
+  const progress = calculateProgress(state.tasks);
+  const percent = Math.round((progress.done / progress.total) * 100);
   return `<div class="app-shell">
     <header>
       ${showBack
-        ? `<button class="back-btn ghost" data-back="1" aria-label="Zurück">
+        ? `<button class="back-btn ghost" data-back="1" aria-label="${t("Zurück", "Back")}">
             <svg width="10" height="16" viewBox="0 0 10 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.5 1.5L1.5 8L8.5 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
            </button>`
         : ""}
       <div class="brand">
-        <div class="logo-mark">FH</div>
-        <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--text-primary)">${title}</span>
+        <img src="firsthome-logo.svg" class="brand-logo" alt="FirstHome by UBS" />
+        <span class="brand-title">${title}</span>
       </div>
+      <button class="ghost lang-toggle" data-action="toggle-language">${getLanguage().toUpperCase()}</button>
     </header>
+    <div class="global-progress" aria-label="${t("Fortschritt", "Progress")}">
+      <div class="global-progress-head">
+        <span>${t("Fortschritt", "Progress")}</span>
+        <strong>${progress.done}/${progress.total} · ${percent}%</strong>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${percent}%"></div></div>
+    </div>
     <main class="fade-up">${content}${state.ui.toast ? `<div class="toast" role="status">${state.ui.toast}</div>` : ""}</main>
     <footer>
-      <button class="ghost" data-nav="/checklist/first-apartment" style="font-size:14px;padding:8px 14px;">Übersicht</button>
-      <button class="ghost" data-action="reset" style="font-size:14px;padding:8px 14px;color:var(--text-tertiary)">Reset</button>
+      <button class="ghost" data-nav="/checklist/first-apartment" style="font-size:14px;padding:8px 14px;">${t("Übersicht", "Overview")}</button>
+      <button class="ghost" data-action="reset" style="font-size:14px;padding:8px 14px;color:var(--text-tertiary)">${t("Reset", "Reset")}</button>
     </footer>
   </div>`;
 }
@@ -738,6 +763,87 @@ function screenDone() {
   `, { showBack: false });
 }
 
+
+function applyLanguageToDom() {
+  const lang = getLanguage();
+  document.documentElement.lang = lang;
+  document.title = lang === "en" ? "FirstHome by UBS" : "FirstHome by UBS";
+  if (lang !== "en") return;
+
+  const replacements = [
+    ["Willkommen bei firsthome", "Welcome to FirstHome"],
+    ["Dein persönlicher Begleiter für den Einzug in die erste eigene Wohnung – von UBS.", "Your personal guide for moving into your first apartment – by UBS."],
+    ["Jetzt starten", "Start now"],
+    ["Erste eigene Wohnung", "First apartment"],
+    ["Kaution organisieren", "Organize deposit"],
+    ["Mietvertrag hochladen", "Upload lease contract"],
+    ["Budget planen", "Plan budget"],
+    ["Daueraufträge einrichten", "Set up standing orders"],
+    ["Versicherungen prüfen", "Review insurances"],
+    ["Dokumente speichern", "Store documents"],
+    ["Los geht's", "Let's get started"],
+    ["Bereit für dein neues Zuhause?", "Ready for your new home?"],
+    ["In 3 Phasen zum Ziel", "Reach your goal in 3 phases"],
+    ["Vorbereitung", "Preparation"],
+    ["Struktur", "Structure"],
+    ["Absicherung", "Protection"],
+    ["Dein Fortschritt", "Your progress"],
+    ["Erledigt", "Done"],
+    ["Offen", "Open"],
+    ["Ausstehend", "Pending"],
+    ["Mitbewohner", "Roommates"],
+    ["Kautionsbetrag", "Deposit amount"],
+    ["Betrag bestätigen", "Confirm amount"],
+    ["Betrag in €", "Amount in €"],
+    ["Speichern", "Save"],
+    ["Unterschriften", "Signatures"],
+    ["Mitbewohner verwalten", "Manage roommates"],
+    ["Zurück zur Übersicht", "Back to overview"],
+    ["Dokumente", "Documents"],
+    ["Wichtige Dokumente", "Important documents"],
+    ["Mietvertrag", "Lease contract"],
+    ["Kautionsbestätigung", "Deposit confirmation"],
+    ["Datei wählen", "Choose file"],
+    ["Erneut hochladen", "Upload again"],
+    ["Upload-Verlauf", "Upload history"],
+    ["Dokumente abschliessen", "Complete documents"],
+    ["Versicherungen", "Insurances"],
+    ["Versicherungen vergleichen", "Compare insurances"],
+    ["Vergleich auswerten", "Evaluate comparison"],
+    ["Empfehlung", "Recommendation"],
+    ["Überspringen", "Skip"],
+    ["Schritt abschliessen", "Complete step"],
+    ["Zusammenfassung", "Summary"],
+    ["Alles erledigt!", "Everything done!"],
+    ["Zur Übersicht", "Back to overview"],
+    ["Monatlich", "Monthly"],
+    ["Einmalig", "One-time"],
+    ["Fortschritt", "Progress"],
+    ["Nächster Schritt", "Next step"],
+    ["Weiter", "Continue"],
+    ["Kontaktdaten gespeichert", "Contact details saved"],
+    ["Schritt erledigt", "Step completed"],
+    ["Schritt übersprungen", "Step skipped"],
+    ["Dokument erfolgreich hochgeladen", "Document uploaded successfully"],
+    ["Reset", "Reset"]
+  ];
+
+  const replaceText = (input) => replacements.reduce((acc, [de, en]) => acc.split(de).join(en), input);
+
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  textNodes.forEach((node) => {
+    node.textContent = replaceText(node.textContent || "");
+  });
+
+  document.querySelectorAll("input[placeholder], button[aria-label]").forEach((el) => {
+    if (el instanceof HTMLInputElement && el.placeholder) el.placeholder = replaceText(el.placeholder);
+    const label = el.getAttribute("aria-label");
+    if (label) el.setAttribute("aria-label", replaceText(label));
+  });
+}
+
 function render() {
   updateTaskFromRules();
   const r = route();
@@ -757,6 +863,7 @@ function render() {
   else html = screenHome();
   app.innerHTML = html;
   initializeSignaturePads();
+  applyLanguageToDom();
 }
 
 const signaturePadContext = new Map();
@@ -835,6 +942,10 @@ document.addEventListener("click", (event) => {
     setToast("Schritt übersprungen");
     if (next) go(`/task/${next}`); else go("/checklist/first-apartment");
     return render();
+  }
+
+  if (action === "toggle-language") {
+    return toggleLanguage();
   }
 
   if (action === "show-issues") {

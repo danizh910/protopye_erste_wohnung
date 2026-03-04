@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 78" role="img" aria-label="FirstHome by UBS">
+  <g transform="translate(2 5)">
+    <path d="M8 36 44 7l36 29" fill="none" stroke="#e0091b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M19 31v30h50V31" fill="none" stroke="#e0091b" stroke-width="7" stroke-linecap="round"/>
+    <path d="M17 39 38 57 77 18" fill="none" stroke="#e0091b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="95" y="48" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="42" fill="#1d1d1f">FirstHome</text>
+  <text x="95" y="71" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#1d1d1f">by UBS</text>
+</svg>

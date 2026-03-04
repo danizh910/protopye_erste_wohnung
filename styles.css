@@ -79,20 +79,46 @@ header {
   align-items: center;
   gap: 10px;
   flex: 1;
+  min-width: 0;
 }
 
-.logo-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  flex-shrink: 0;
+.brand-logo {
+  width: 128px;
+  max-width: 42vw;
+  height: auto;
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lang-toggle {
+  min-width: 58px;
+  padding: 7px 12px;
+}
+
+.global-progress {
+  position: sticky;
+  top: 52px;
+  z-index: 95;
+  background: rgba(245, 245, 247, 0.95);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 20px 10px;
+}
+
+.global-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
 header h1 {
@@ -119,6 +145,7 @@ footer {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .card {
@@ -494,13 +521,18 @@ canvas.signature-pad:hover {
 
 @media (max-width: 640px) {
   main { padding: 16px 16px 28px; }
-  header { padding: 0 16px; }
+  header { padding: 0 12px; gap: 8px; }
   footer { padding: 10px 16px; }
   h1 { font-size: 24px; }
   h2 { font-size: 20px; }
-  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .summary-grid { grid-template-columns: 1fr; }
   .card,
-  .card-hero { border-radius: var(--radius-md); }
+  .card-hero { border-radius: var(--radius-md); padding: 16px; }
+  .global-progress { top: 52px; padding: 8px 16px; }
+  .budget-bar-row { flex-wrap: wrap; }
+  .budget-bar-label, .budget-bar-value { width: auto; }
+  .item-row input { max-width: 100%; }
+  .lang-toggle { min-width: 50px; padding: 6px 10px; }
 }
 
 ::-webkit-scrollbar { width: 6px; }
